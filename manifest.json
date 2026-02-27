@@ -3,11 +3,12 @@
   "name": "17TRACK Custom",
   "version": "1.0.0",
   "documentation": "https://www.home-assistant.io/integrations/seventeentrack",
+  "issue_tracker": "https://github.com/OUARZA/ha-seventeentrack-custom/issues",
   "requirements": [
     "py17track==2021.12.2"
   ],
   "codeowners": [
-    "@ton-github-username"
+    "@OUARZA"
   ],
   "iot_class": "cloud_polling",
   "loggers": [
