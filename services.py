@@ -2,7 +2,6 @@
 
 from typing import Any, Final
 
-from pyseventeentrack.package import PACKAGE_STATUS_MAP, Package
 import voluptuous as vol
 
 from homeassistant.const import ATTR_CONFIG_ENTRY_ID, ATTR_FRIENDLY_NAME, ATTR_LOCATION
@@ -13,10 +12,11 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.helpers import config_validation as cv, selector, service
+from homeassistant.helpers import config_validation as cv, service
 from homeassistant.util import slugify
 
 from . import SeventeenTrackCoordinator
+from .api import SeventeenTrackPackage
 from .const import (
     ATTR_DESTINATION_COUNTRY,
     ATTR_INFO_TEXT,
@@ -38,17 +38,7 @@ from .const import (
 SERVICE_GET_PACKAGES_SCHEMA: Final = vol.Schema(
     {
         vol.Required(ATTR_CONFIG_ENTRY_ID): cv.string,
-        vol.Optional(ATTR_PACKAGE_STATE): selector.SelectSelector(
-            selector.SelectSelectorConfig(
-                multiple=True,
-                options=[
-                    value.lower().replace(" ", "_")
-                    for value in PACKAGE_STATUS_MAP.values()
-                ],
-                mode=selector.SelectSelectorMode.DROPDOWN,
-                translation_key=ATTR_PACKAGE_STATE,
-            )
-        ),
+        vol.Optional(ATTR_PACKAGE_STATE): [cv.string],
     }
 )
 
@@ -79,11 +69,7 @@ async def _get_packages(call: ServiceCall) -> ServiceResponse:
     seventeen_coordinator: SeventeenTrackCoordinator = call.hass.data[DOMAIN][
         entry.entry_id
     ]
-    live_packages = sorted(
-        await seventeen_coordinator.client.profile.packages(
-            show_archived=seventeen_coordinator.show_archived
-        )
-    )
+    live_packages = sorted(await seventeen_coordinator.client.async_get_packages())
 
     return {
         "packages": [
@@ -107,9 +93,7 @@ async def _add_package(call: ServiceCall) -> None:
         entry.entry_id
     ]
 
-    await seventeen_coordinator.client.profile.add_package(
-        tracking_number, friendly_name
-    )
+    await seventeen_coordinator.client.async_add_package(tracking_number, friendly_name)
 
 
 async def _archive_package(call: ServiceCall) -> None:
@@ -123,10 +107,10 @@ async def _archive_package(call: ServiceCall) -> None:
         entry.entry_id
     ]
 
-    await seventeen_coordinator.client.profile.archive_package(tracking_number)
+    await seventeen_coordinator.client.async_archive_package(tracking_number)
 
 
-def _package_to_dict(package: Package) -> dict[str, Any]:
+def _package_to_dict(package: SeventeenTrackPackage) -> dict[str, Any]:
     result = {
         ATTR_DESTINATION_COUNTRY: package.destination_country,
         ATTR_ORIGIN_COUNTRY: package.origin_country,

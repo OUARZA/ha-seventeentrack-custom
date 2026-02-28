@@ -3,15 +3,12 @@
 from dataclasses import dataclass
 from typing import Any
 
-from pyseventeentrack import Client as SeventeenTrackClient
-from pyseventeentrack.errors import SeventeenTrackError
-from pyseventeentrack.package import Package
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import slugify
 
+from .api import SeventeenTrackApiClient, SeventeenTrackError, SeventeenTrackPackage
 from .const import (
     CONF_SHOW_ARCHIVED,
     CONF_SHOW_DELIVERED,
@@ -26,7 +23,7 @@ class SeventeenTrackData:
     """Class for handling the data retrieval."""
 
     summary: dict[str, dict[str, Any]]
-    live_packages: dict[str, Package]
+    live_packages: dict[str, SeventeenTrackPackage]
 
 
 class SeventeenTrackCoordinator(DataUpdateCoordinator[SeventeenTrackData]):
@@ -38,7 +35,7 @@ class SeventeenTrackCoordinator(DataUpdateCoordinator[SeventeenTrackData]):
         self,
         hass: HomeAssistant,
         config_entry: ConfigEntry,
-        client: SeventeenTrackClient,
+        client: SeventeenTrackApiClient,
     ) -> None:
         """Initialize."""
         super().__init__(
@@ -49,7 +46,7 @@ class SeventeenTrackCoordinator(DataUpdateCoordinator[SeventeenTrackData]):
             update_interval=DEFAULT_SCAN_INTERVAL,
         )
         self.show_delivered = self.config_entry.options[CONF_SHOW_DELIVERED]
-        self.account_id = client.profile.account_id
+        self.account_id = config_entry.unique_id or config_entry.entry_id
 
         self.show_archived = self.config_entry.options[CONF_SHOW_ARCHIVED]
         self.client = client
@@ -58,32 +55,25 @@ class SeventeenTrackCoordinator(DataUpdateCoordinator[SeventeenTrackData]):
         """Fetch data from 17Track API."""
 
         try:
-            summary = await self.client.profile.summary(
-                show_archived=self.show_archived
-            )
-
-            live_packages = set(
-                await self.client.profile.packages(show_archived=self.show_archived)
-            )
-
+            packages = await self.client.async_get_packages()
         except SeventeenTrackError as err:
             raise UpdateFailed(err) from err
 
-        summary_dict = {}
-        live_packages_dict = {}
+        summary_dict: dict[str, dict[str, Any]] = {}
+        live_packages_dict: dict[str, SeventeenTrackPackage] = {}
 
-        for status, quantity in summary.items():
-            summary_dict[slugify(status)] = {
-                "quantity": quantity,
-                "packages": [],
-                "status_name": status,
-            }
-
-        for package in live_packages:
+        for package in sorted(packages):
             live_packages_dict[package.tracking_number] = package
-            summary_value = summary_dict.get(slugify(package.status))
-            if summary_value:
-                summary_value["packages"].append(package)
+            status_slug = slugify(package.status)
+            if status_slug not in summary_dict:
+                summary_dict[status_slug] = {
+                    "quantity": 0,
+                    "packages": [],
+                    "status_name": package.status,
+                }
+
+            summary_dict[status_slug]["quantity"] += 1
+            summary_dict[status_slug]["packages"].append(package)
 
         return SeventeenTrackData(
             summary=summary_dict, live_packages=live_packages_dict

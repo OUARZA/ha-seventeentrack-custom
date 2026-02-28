@@ -12,8 +12,7 @@
     "step": {
       "user": {
         "data": {
-          "password": "[%key:common::config_flow::data::password%]",
-          "username": "[%key:common::config_flow::data::username%]"
+          "api_key": "API key 17TRACK"
         }
       }
     }
