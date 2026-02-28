@@ -12,7 +12,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.helpers import config_validation as cv, service
+from homeassistant.helpers import config_validation as cv
 from homeassistant.util import slugify
 
 from . import SeventeenTrackCoordinator
@@ -62,9 +62,7 @@ async def _get_packages(call: ServiceCall) -> ServiceResponse:
     """Get packages from 17Track."""
     package_states = call.data.get(ATTR_PACKAGE_STATE, [])
 
-    entry = service.async_get_config_entry(
-        call.hass, DOMAIN, call.data[ATTR_CONFIG_ENTRY_ID]
-    )
+    entry = _get_config_entry(call)
 
     seventeen_coordinator: SeventeenTrackCoordinator = call.hass.data[DOMAIN][
         entry.entry_id
@@ -85,9 +83,7 @@ async def _add_package(call: ServiceCall) -> None:
     tracking_number = call.data[ATTR_PACKAGE_TRACKING_NUMBER]
     friendly_name = call.data[ATTR_PACKAGE_FRIENDLY_NAME]
 
-    entry = service.async_get_config_entry(
-        call.hass, DOMAIN, call.data[ATTR_CONFIG_ENTRY_ID]
-    )
+    entry = _get_config_entry(call)
 
     seventeen_coordinator: SeventeenTrackCoordinator = call.hass.data[DOMAIN][
         entry.entry_id
@@ -99,9 +95,7 @@ async def _add_package(call: ServiceCall) -> None:
 async def _archive_package(call: ServiceCall) -> None:
     tracking_number = call.data[ATTR_PACKAGE_TRACKING_NUMBER]
 
-    entry = service.async_get_config_entry(
-        call.hass, DOMAIN, call.data[ATTR_CONFIG_ENTRY_ID]
-    )
+    entry = _get_config_entry(call)
 
     seventeen_coordinator: SeventeenTrackCoordinator = call.hass.data[DOMAIN][
         entry.entry_id
@@ -125,6 +119,22 @@ def _package_to_dict(package: SeventeenTrackPackage) -> dict[str, Any]:
     if timestamp := package.timestamp:
         result[ATTR_TIMESTAMP] = timestamp.isoformat()
     return result
+
+
+def _get_config_entry(call: ServiceCall):
+    """Get and validate the target config entry for a service call."""
+    config_entry_id = call.data[ATTR_CONFIG_ENTRY_ID]
+    entry = call.hass.config_entries.async_get_entry(config_entry_id)
+
+    if entry is None:
+        raise vol.Invalid(f"Unknown config entry id: {config_entry_id}")
+
+    if entry.domain != DOMAIN:
+        raise vol.Invalid(
+            f"Config entry {config_entry_id} belongs to domain {entry.domain}, expected {DOMAIN}"
+        )
+
+    return entry
 
 
 @callback
