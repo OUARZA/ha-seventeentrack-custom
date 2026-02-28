@@ -41,12 +41,12 @@ class SeventeenTrackApiClient:
     async def async_validate_token(self) -> bool:
         """Validate API key.
 
-        17TRACK may return request/validation errors on empty payloads even when
-        the token is valid. We only reject keys for explicit auth-related
-        failures.
+        17TRACK may return payload validation errors on some endpoints even
+        when the token is valid. We only reject keys for explicit auth-related
+        failures and accept non-auth validation errors.
         """
         try:
-            await self._request("gettrackinfo", [])
+            await self._request_prefer_list_endpoint()
         except SeventeenTrackError as err:
             return not self._is_auth_error(str(err))
         return True
@@ -67,7 +67,7 @@ class SeventeenTrackApiClient:
 
     async def async_get_packages(self) -> list[SeventeenTrackPackage]:
         """Fetch all registered packages and normalize payload."""
-        payload = await self._request("gettrackinfo", [])
+        payload = await self._request_prefer_list_endpoint()
 
         entries: list[dict[str, Any]] = []
         if isinstance(payload, list):
@@ -78,6 +78,15 @@ class SeventeenTrackApiClient:
                 entries = [item for item in candidates if isinstance(item, dict)]
 
         return [self._to_package(item) for item in entries if item.get("number")]
+
+    async def _request_prefer_list_endpoint(self) -> Any:
+        """Request package list, preferring endpoint that accepts empty payload."""
+        try:
+            return await self._request("gettracklist", [])
+        except SeventeenTrackError as err:
+            if "submitted data is invalid" not in str(err).lower():
+                raise
+            return await self._request("gettrackinfo", [])
 
     async def async_add_package(self, tracking_number: str, title: str) -> None:
         """Register a package."""
