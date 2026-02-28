@@ -1,7 +1,7 @@
 {
   "domain": "seventeentrack_custom",
   "name": "17TRACK Custom",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://www.home-assistant.io/integrations/seventeentrack",
   "issue_tracker": "https://github.com/OUARZA/ha-seventeentrack-custom/issues",
   "requirements": [],
@@ -12,5 +12,6 @@
   "loggers": [
     "custom_components.seventeentrack_custom"
   ],
-  "integration_type": "service"
+  "integration_type": "service",
+  "config_flow": true
 }

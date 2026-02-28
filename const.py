@@ -21,7 +21,7 @@ CONF_SHOW_DELIVERED = "show_delivered"
 DEFAULT_SHOW_ARCHIVED = False
 DEFAULT_SHOW_DELIVERED = False
 
-DOMAIN = "seventeentrack"
+DOMAIN = "seventeentrack_custom"
 
 DATA_PACKAGES = "package_data"
 DATA_SUMMARY = "summary_data"
