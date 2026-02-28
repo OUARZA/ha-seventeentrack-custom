@@ -17,7 +17,7 @@ get_packages:
       required: true
       selector:
         config_entry:
-          integration: seventeentrack
+          integration: seventeentrack_custom
 add_package:
   fields:
     package_tracking_number:
@@ -32,7 +32,7 @@ add_package:
       required: true
       selector:
         config_entry:
-          integration: seventeentrack
+          integration: seventeentrack_custom
 
 archive_package:
   fields:
@@ -44,4 +44,4 @@ archive_package:
       required: true
       selector:
         config_entry:
-          integration: seventeentrack
+          integration: seventeentrack_custom
