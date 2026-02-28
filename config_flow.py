@@ -5,12 +5,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from pyseventeentrack import Client as SeventeenTrackClient
-from pyseventeentrack.errors import SeventeenTrackError
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_API_KEY
 from homeassistant.core import callback
 from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers.schema_config_entry_flow import (
@@ -18,6 +16,7 @@ from homeassistant.helpers.schema_config_entry_flow import (
     SchemaOptionsFlowHandler,
 )
 
+from .api import SeventeenTrackApiClient, SeventeenTrackError
 from .const import (
     CONF_SHOW_ARCHIVED,
     CONF_SHOW_DELIVERED,
@@ -40,8 +39,7 @@ OPTIONS_FLOW = {
 
 USER_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_USERNAME): str,
-        vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_API_KEY): str,
     }
 )
 
@@ -66,24 +64,22 @@ class SeventeenTrackConfigFlow(ConfigFlow, domain=DOMAIN):
 
         errors = {}
         if user_input:
-            client = self._get_client()
+            client = self._get_client(user_input[CONF_API_KEY])
 
             try:
-                if not await client.profile.login(
-                    user_input[CONF_USERNAME], user_input[CONF_PASSWORD]
-                ):
+                if not await client.async_validate_token():
                     errors["base"] = "invalid_auth"
             except SeventeenTrackError as err:
-                _LOGGER.error("There was an error while logging in: %s", err)
+                _LOGGER.error("There was an error while validating token: %s", err)
                 errors["base"] = "cannot_connect"
 
             if not errors:
-                account_id = client.profile.account_id
+                account_id = user_input[CONF_API_KEY][-8:]
                 await self.async_set_unique_id(account_id)
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
-                    title=user_input[CONF_USERNAME],
+                    title=f"17TRACK {account_id}",
                     data=user_input,
                     options={
                         CONF_SHOW_ARCHIVED: DEFAULT_SHOW_ARCHIVED,
@@ -98,6 +94,6 @@ class SeventeenTrackConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     @callback
-    def _get_client(self):
+    def _get_client(self, api_key: str) -> SeventeenTrackApiClient:
         session = aiohttp_client.async_get_clientsession(self.hass)
-        return SeventeenTrackClient(session=session)
+        return SeventeenTrackApiClient(session=session, api_key=api_key)

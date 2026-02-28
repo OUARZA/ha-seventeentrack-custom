@@ -1,16 +1,14 @@
 """The seventeentrack component."""
 
-from pyseventeentrack import Client as SeventeenTrackClient
-from pyseventeentrack.errors import SeventeenTrackError
-
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
+from homeassistant.const import CONF_API_KEY, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
+from .api import SeventeenTrackApiClient, SeventeenTrackError
 from .const import DOMAIN
 from .coordinator import SeventeenTrackCoordinator
 from .services import async_setup_services
@@ -32,10 +30,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up 17Track from a config entry."""
 
     session = async_get_clientsession(hass)
-    client = SeventeenTrackClient(session=session)
+    client = SeventeenTrackApiClient(session=session, api_key=entry.data[CONF_API_KEY])
 
     try:
-        await client.profile.login(entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
+        if not await client.async_validate_token():
+            raise ConfigEntryNotReady("Invalid 17TRACK API token")
     except SeventeenTrackError as err:
         raise ConfigEntryNotReady from err
 
