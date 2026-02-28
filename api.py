@@ -39,12 +39,31 @@ class SeventeenTrackApiClient:
         self._api_key = api_key
 
     async def async_validate_token(self) -> bool:
-        """Validate API key. Any non-auth error means token is accepted."""
+        """Validate API key.
+
+        17TRACK may return request/validation errors on empty payloads even when
+        the token is valid. We only reject keys for explicit auth-related
+        failures.
+        """
         try:
             await self._request("gettrackinfo", [])
         except SeventeenTrackError as err:
-            return "invalid" not in str(err).lower()
+            return not self._is_auth_error(str(err))
         return True
+
+    def _is_auth_error(self, message: str) -> bool:
+        normalized = message.lower()
+        auth_markers = (
+            "invalid token",
+            "invalid api key",
+            "auth",
+            "unauthorized",
+            "forbidden",
+            "token",
+            "api key",
+            "apikey",
+        )
+        return any(marker in normalized for marker in auth_markers)
 
     async def async_get_packages(self) -> list[SeventeenTrackPackage]:
         """Fetch all registered packages and normalize payload."""

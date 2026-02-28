@@ -64,7 +64,9 @@ class SeventeenTrackConfigFlow(ConfigFlow, domain=DOMAIN):
 
         errors = {}
         if user_input:
-            client = self._get_client(user_input[CONF_API_KEY])
+            api_key = user_input[CONF_API_KEY].strip()
+            user_input[CONF_API_KEY] = api_key
+            client = self._get_client(api_key)
 
             try:
                 if not await client.async_validate_token():
@@ -74,7 +76,7 @@ class SeventeenTrackConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
 
             if not errors:
-                account_id = user_input[CONF_API_KEY][-8:]
+                account_id = api_key[-8:]
                 await self.async_set_unique_id(account_id)
                 self._abort_if_unique_id_configured()
 
